@@ -1,7 +1,9 @@
 fastapi
 uvicorn[standard]
 langchain
+langchain-groq
 docling
 qdrant-client
 sentence-transformers
 python-multipart
+python-dotenv
