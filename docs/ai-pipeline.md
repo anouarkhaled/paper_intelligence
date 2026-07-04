@@ -53,6 +53,17 @@ different sections would have ambiguous metadata (which section does it
 belong to?) and would mix unrelated content, hurting both retrieval
 precision and citation accuracy.
 
+**Implementation note — considered and rejected markdown-based chunking:**
+an alternative would be exporting via `doc.export_to_markdown()` and
+splitting with LangChain's `MarkdownHeaderTextSplitter` +
+`RecursiveCharacterTextSplitter`. Rejected because markdown export doesn't
+carry page numbers directly — only a `page_break_placeholder` option that
+would require counting placeholder occurrences to reconstruct page
+numbers — and it needs two chained splitters instead of one pass.
+Iterating `doc.iterate_items()` directly gives `page_no` and
+`SectionHeaderItem` boundaries natively, so that's what's implemented in
+`backend/app/services/chunking.py`.
+
 ## Embedding model
 
 **Decided:** `sentence-transformers/all-MiniLM-L6-v2`
