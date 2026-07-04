@@ -26,3 +26,6 @@ datasets/*
 
 # Vector DB local storage
 qdrant_storage/
+
+# Personal learning notes (not project documentation)
+LEARNING_LOG.md
