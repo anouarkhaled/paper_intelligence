@@ -40,8 +40,8 @@ def runtime(tmp_path, monkeypatch):
 
     extraction.extract_pdf = extract
     chunking = ModuleType("app.services.chunking")
-    chunking.CHUNK_SIZE_WORDS = 500
-    chunking.CHUNK_OVERLAP_WORDS = 50
+    chunking.CHUNKING_VERSION = "section-token-offsets-v2"
+    chunking.CHUNK_OVERLAP_TOKENS = 32
     chunking.chunk_document = lambda doc: [] if state["failure"] == "empty" else [
         {"text": "Transformer evidence", "section": "Introduction", "page": 1},
     ]
@@ -49,6 +49,9 @@ def runtime(tmp_path, monkeypatch):
     embeddings.embedding_dimension = lambda: 3
 
     def embed(texts):
+        if state["failure"] == "query":
+            from app.models.errors import EmbeddingInputTooLongError
+            raise EmbeddingInputTooLongError("Question is too long")
         if state["failure"] == "embedding":
             raise RuntimeError("private embedding error")
         if state["failure"] == "count":
@@ -219,3 +222,13 @@ def test_database_errors_have_controlled_responses(runtime):
         response = client.post("/chat", json={"paper_id": "missing", "question": "Explain"})
         assert response.status_code == 503
         assert response.json() == {"detail": "Document metadata store is unavailable"}
+
+
+def test_overlong_question_is_rejected_without_generation(runtime):
+    with TestClient(runtime.new_app()) as client:
+        paper_id = upload(client).json()["paper_id"]
+        runtime.state["failure"] = "query"
+        response = client.post("/chat", json={"paper_id": paper_id, "question": "Too long"})
+        assert response.status_code == 422
+        assert response.json() == {"detail": "Question exceeds the embedding model token limit"}
+    assert runtime.state["generations"] == 0

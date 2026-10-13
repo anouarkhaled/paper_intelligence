@@ -73,10 +73,19 @@ generation, returns an answer grounded in cited chunks (NFR2).
 ```
 
 **Error cases:**
+Citation objects retain `section` and nullable `page` (first known source page).
+They additionally return `pages` (exact known pages), nullable `page_start` /
+`page_end`, and `provenance_complete`. An empty `pages` list with null bounds
+means unknown provenance. Bounds do not imply that all intermediate pages are
+known; use `pages`. Attribution is conservative at Docling text-item granularity,
+not proof that the generated answer used those pages. Old word-based ingestions
+must be re-uploaded after the v2 pipeline change.
+
 | Case | Status | Body |
 |---|---|---|
 | `paper_id` not found | 404 | `{ "detail": "Paper not found" }` |
 | Empty question | 400 | `{ "detail": "Question cannot be empty" }` |
+| Question exceeds embedding token budget | 422 | `{ "detail": "Question exceeds the embedding model token limit" }` |
 | Document processing/failed | 409 | `{ "detail": "Paper is not ready (processing)" }` (reflects current status) |
 | Document belongs to another pipeline configuration | 409 | Re-upload required |
 | SQLite operation fails | 503 | `{ "detail": "Document metadata store is unavailable" }` |

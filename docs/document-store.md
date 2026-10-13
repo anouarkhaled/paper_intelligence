@@ -33,7 +33,7 @@ The unique `(owner_id, source_checksum, pipeline_version)` constraint prevents
 duplicate ingestion identities while permitting another owner or pipeline
 version to ingest the same source. Checksums must be lowercase SHA-256 hex.
 The upload route computes SHA-256 from the uploaded bytes. A pipeline fingerprint
-includes the current ingestion algorithm, word chunk/overlap sizes, embedding
+includes the current token-based ingestion algorithm, overlap target, embedding
 model and Qdrant target. Dependencies and model revisions are not pinned yet,
 so this fingerprint is not a complete reproducibility manifest.
 

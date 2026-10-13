@@ -126,6 +126,25 @@ status. The upgrade will reconcile that historical checklist separately.
 
 ### Tests
 
+Chunking now follows the loaded embedding tokenizer's effective input limit,
+including special tokens, and uses a 32-token overlap target within sections.
+Original substrings are preserved and retokenized before embedding; over-budget
+inputs are rejected. Citations expose known page lists/bounds and mark missing
+provenance. Re-upload documents indexed by the older word-based pipeline.
+
+Offline chunking checks use real Docling objects and a locally constructed fast
+WordPiece tokenizer (requires `docling-core`, `transformers` and `tokenizers`,
+already transitively used by the application):
+
+```bash
+cd backend
+python -m pytest -q tests/test_token_chunking.py
+```
+
+These checks require no model downloads. They do not verify the downloaded
+MiniLM artifact or real PDF extraction; the existing `test_chunking.py` suite
+uses the PDF fixture and actual configured model when those assets are available.
+
 ```bash
 cd backend
 pytest -v

@@ -24,8 +24,17 @@ Answer:"""
 
 
 def generate_answer(question: str, chunks: list[dict]) -> dict:
+    def citation(chunk):
+        pages = chunk.get("pages", [chunk["page"]] if chunk.get("page") is not None else [])
+        return {
+            "section": chunk["section"], "page": pages[0] if pages else None,
+            "pages": pages, "page_start": pages[0] if pages else None,
+            "page_end": pages[-1] if pages else None,
+            "provenance_complete": chunk.get("provenance_complete", False),
+        }
+
     context = "\n\n".join(
-        f"[Section: {chunk['section']}, Page: {chunk['page']}]\n{chunk['text']}"
+        f"[Section: {chunk['section']}, Pages: {citation(chunk)['pages'] or 'unknown'}]\n{chunk['text']}"
         for chunk in chunks
     )
     prompt = PROMPT_TEMPLATE.format(context=context, question=question)
@@ -35,9 +44,10 @@ def generate_answer(question: str, chunks: list[dict]) -> dict:
     seen = set()
     citations = []
     for chunk in chunks:
-        key = (chunk["section"], chunk["page"])
+        source = citation(chunk)
+        key = (source["section"], tuple(source["pages"]), source["provenance_complete"])
         if key not in seen:
             seen.add(key)
-            citations.append({"section": chunk["section"], "page": chunk["page"]})
+            citations.append(source)
 
     return {"answer": response.content, "citations": citations}

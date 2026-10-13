@@ -1,4 +1,4 @@
-from pydantic import BaseModel
+from pydantic import BaseModel, Field
 
 
 class UploadResponse(BaseModel):
@@ -15,7 +15,11 @@ class ChatRequest(BaseModel):
 
 class Citation(BaseModel):
     section: str
-    page: int
+    page: int | None = None
+    pages: list[int] = Field(default_factory=list)
+    page_start: int | None = None
+    page_end: int | None = None
+    provenance_complete: bool = False
 
 
 class ChatResponse(BaseModel):

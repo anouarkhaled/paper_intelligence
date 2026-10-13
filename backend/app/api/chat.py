@@ -4,6 +4,7 @@ from fastapi import APIRouter, Depends, HTTPException
 
 from app.dependencies import LOCAL_OWNER_ID, get_document_store
 from app.models.schemas import ChatRequest, ChatResponse
+from app.models.errors import EmbeddingInputTooLongError
 from app.rag.generation import generate_answer
 from app.rag.retriever import retrieve_chunks
 from app.services.document_store import DocumentNotFoundError, DocumentStore
@@ -27,7 +28,10 @@ def chat(request: ChatRequest, store: DocumentStore = Depends(get_document_store
     if not request.question.strip():
         raise HTTPException(status_code=400, detail="Question cannot be empty")
 
-    chunks = retrieve_chunks(request.paper_id, request.question)
+    try:
+        chunks = retrieve_chunks(request.paper_id, request.question)
+    except EmbeddingInputTooLongError:
+        raise HTTPException(status_code=422, detail="Question exceeds the embedding model token limit") from None
     result = generate_answer(request.question, chunks)
 
     return ChatResponse(**result)

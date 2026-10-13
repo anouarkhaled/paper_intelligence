@@ -27,6 +27,8 @@ def test_embedding_model_is_configured_lazy_and_cached(monkeypatch):
     class FakeModel:
         def __init__(self, model_name):
             created.append(model_name)
+            self.max_seq_length = 128
+            self.tokenizer = FakeTokenizer()
 
         def get_sentence_embedding_dimension(self):
             return 3
@@ -37,12 +39,23 @@ def test_embedding_model_is_configured_lazy_and_cached(monkeypatch):
                     return [[1.0, 0.0, 0.0] for _ in texts]
             return Vectors()
 
+    class FakeTokenizer:
+        model_max_length = 512
+
+        def __call__(self, text, **kwargs):
+            return {"input_ids": [0] * (len(text.split()) + 2)}
+
     transformer.SentenceTransformer = FakeModel
     monkeypatch.setitem(sys.modules, "sentence_transformers", transformer)
     module = load_module("app/services/embeddings.py", "test_embeddings_config")
     assert created == []
     assert module.embedding_dimension() == 3
+    assert module.tokenizer_and_limit()[1] == 128
     assert module.embed_texts(["example"]) == [[1.0, 0.0, 0.0]]
+    with pytest.raises(ValueError, match="silent truncation"):
+        module.embed_texts(["word " * 127])
+    module._get_model().tokenizer.model_max_length = 64
+    assert module.tokenizer_and_limit()[1] == 64
     assert created == ["test-model"]
 
 
@@ -124,8 +137,8 @@ def test_api_respects_configured_cors_and_upload_limit(monkeypatch, tmp_path):
         if name.endswith("extraction"):
             stub.ExtractionError = type("ExtractionError", (Exception,), {})
         if name.endswith("chunking"):
-            stub.CHUNK_SIZE_WORDS = 500
-            stub.CHUNK_OVERLAP_WORDS = 50
+            stub.CHUNKING_VERSION = "section-token-offsets-v2"
+            stub.CHUNK_OVERLAP_TOKENS = 32
         monkeypatch.setitem(sys.modules, name, stub)
 
     api = ModuleType("app.api")
@@ -154,3 +167,36 @@ def test_api_respects_configured_cors_and_upload_limit(monkeypatch, tmp_path):
         })
         assert oversized.status_code == 413
         assert oversized.json() == {"detail": "File exceeds 1MB limit"}
+
+
+def test_generation_preserves_missing_and_multiple_pages(monkeypatch):
+    from types import SimpleNamespace
+
+    groq = ModuleType("langchain_groq")
+    groq.ChatGroq = lambda **kwargs: pytest.fail("No live LLM should be initialized")
+    monkeypatch.setitem(sys.modules, "langchain_groq", groq)
+    module = load_module("app/rag/generation.py", "test_page_citations")
+    prompts = []
+
+    def invoke(prompt):
+        prompts.append(prompt)
+        return SimpleNamespace(content="Answer")
+
+    monkeypatch.setattr(module, "_get_llm", lambda: SimpleNamespace(invoke=invoke))
+    chunks = [
+        {"text": "Unknown page evidence", "section": "Intro", "page": None,
+         "pages": [], "provenance_complete": False},
+        {"text": "Multiple page evidence", "section": "Methods", "page": 2,
+         "pages": [2, 4], "provenance_complete": True},
+    ]
+    result = module.generate_answer("Question", chunks + [chunks[1]])
+    from app.models.schemas import ChatResponse
+
+    response = ChatResponse(**result)
+    assert len(response.citations) == 2
+    assert response.citations[0].page is None
+    assert response.citations[0].pages == []
+    assert response.citations[0].provenance_complete is False
+    assert response.citations[1].pages == [2, 4]
+    assert response.citations[1].page_start == 2 and response.citations[1].page_end == 4
+    assert "Pages: unknown" in prompts[0]

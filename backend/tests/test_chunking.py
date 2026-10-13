@@ -6,7 +6,7 @@ def test_chunk_document_returns_chunks_with_expected_keys(sample_doc):
 
     assert len(chunks) > 0
     for chunk in chunks:
-        assert set(chunk.keys()) == {"text", "section", "page"}
+        assert {"text", "section", "page", "pages", "token_count", "provenance_complete"} <= set(chunk.keys())
         assert isinstance(chunk["text"], str) and chunk["text"]
         assert isinstance(chunk["section"], str)
         assert isinstance(chunk["page"], int)
@@ -15,11 +15,11 @@ def test_chunk_document_returns_chunks_with_expected_keys(sample_doc):
 def test_chunk_document_produces_reasonable_chunk_count(sample_doc):
     chunks = chunk_document(sample_doc)
 
-    # This paper produced 29 chunks when the chunking strategy was verified
-    # (docs/ai-pipeline.md). A wide range here catches gross regressions
-    # (e.g. chunking breaking entirely) without being brittle to small
-    # algorithm tweaks.
-    assert 10 <= len(chunks) <= 100
+    assert len(chunks) >= 10
+    from app.services.embeddings import tokenizer_and_limit
+
+    tokenizer, limit = tokenizer_and_limit()
+    assert all(len(tokenizer(c["text"], add_special_tokens=True)["input_ids"]) <= limit for c in chunks)
 
 
 def test_chunk_document_captures_known_section(sample_doc):
