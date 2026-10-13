@@ -115,6 +115,17 @@ class DocumentStore:
             ).fetchall()
             return [Document(**dict(row)) for row in rows]
 
+    def find_ingestion(
+        self, *, owner_id: str, source_checksum: str, pipeline_version: str,
+    ) -> Document | None:
+        with self._connection() as connection:
+            row = connection.execute(
+                """SELECT * FROM documents
+                WHERE owner_id = ? AND source_checksum = ? AND pipeline_version = ?""",
+                (owner_id, source_checksum, pipeline_version),
+            ).fetchone()
+            return Document(**dict(row)) if row else None
+
     def mark_ready(
         self, document_id: str, *, owner_id: str, num_pages: int, num_chunks: int,
     ) -> Document:

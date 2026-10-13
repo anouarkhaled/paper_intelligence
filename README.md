@@ -111,10 +111,13 @@ incompatible index. Dependency versions and model revisions are not pinned yet.
 ### Current scope and limitations
 
 Implemented routes: `GET /health`, `POST /papers/upload`, and `POST /chat`.
-Summary generation is planned, not implemented. Paper metadata is still in
-memory and is lost on restart. The SQLite metadata store and migrations are
-implemented but not yet connected to these routes; setting `DATA_DIR` alone
-does not persist API uploads. See [document-store design](docs/document-store.md).
+Summary generation is planned, not implemented. Upload/chat metadata now lives
+in `DATA_DIR/documents.sqlite3`, initialized at backend startup. Preserve this
+directory and Qdrant's storage across restarts. The API is still single-user,
+with a fixed server-side owner and no authentication. Identical successful
+uploads reuse their original paper ID; failed/interrupted ingestions are not
+automatically retried. Source PDFs and browser state are not retained.
+See [document-store design](docs/document-store.md).
 Only born-digital PDFs are supported; OCR is disabled. Upload size is currently
 checked after reading the file. Citations list retrieved sections/pages and are
 not yet validated against individual answer claims. See `docs/milestones.md`
@@ -140,7 +143,7 @@ python -m pytest -q tests/test_settings.py tests/test_configuration_wiring.py
 The standalone metadata store can be tested without model or service dependencies:
 
 ```bash
-python -m pytest -q tests/test_document_store.py
+python -m pytest -q tests/test_document_store.py tests/test_persistent_api.py
 ```
 
 The Qdrant configuration test uses an in-memory client; model and LLM

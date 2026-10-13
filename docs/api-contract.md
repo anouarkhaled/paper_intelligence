@@ -20,6 +20,10 @@ Uploads a PDF, triggers the extraction/chunking/embedding pipeline
 (Docling -> chunk -> embed -> store in Qdrant), and returns an ID to
 reference this paper in later requests.
 
+Metadata is persisted in SQLite. Repeating an identical upload with the same
+pipeline/index configuration returns the original ready ID and filename.
+The API uses a fixed server-side owner for single-user development; no auth yet.
+
 **Request:** `multipart/form-data` with a single `file` field (the PDF).
 
 **Response 200:**
@@ -38,6 +42,11 @@ reference this paper in later requests.
 | Not a PDF | 400 | `{ "detail": "File must be a PDF" }` |
 | File > configured `MAX_UPLOAD_MB` (default 50) | 413 | `{ "detail": "File exceeds 50MB limit" }` (message reflects configured limit) |
 | Docling fails to parse (e.g. scanned/image-only PDF) | 422 | `{ "detail": "Could not extract text from PDF" }` |
+| Empty file | 422 | `{ "detail": "PDF file is empty" }` |
+| Duplicate processing/failed ingestion | 409 | Current state and unsupported automatic retry |
+| Another ingestion is active in this process | 429 | `{ "detail": "Another document is being processed; try again later" }` |
+| Embedding/indexing failure | 503 | `{ "detail": "Document ingestion failed" }` |
+| SQLite operation fails | 503 | `{ "detail": "Document metadata store is unavailable" }` |
 
 ## `POST /chat`
 
@@ -68,6 +77,9 @@ generation, returns an answer grounded in cited chunks (NFR2).
 |---|---|---|
 | `paper_id` not found | 404 | `{ "detail": "Paper not found" }` |
 | Empty question | 400 | `{ "detail": "Question cannot be empty" }` |
+| Document processing/failed | 409 | `{ "detail": "Paper is not ready (processing)" }` (reflects current status) |
+| Document belongs to another pipeline configuration | 409 | Re-upload required |
+| SQLite operation fails | 503 | `{ "detail": "Document metadata store is unavailable" }` |
 
 ## `POST /papers/{paper_id}/summary`
 

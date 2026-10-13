@@ -1,7 +1,7 @@
 import uuid
 
 from qdrant_client import QdrantClient
-from qdrant_client.models import Distance, PointStruct, VectorParams
+from qdrant_client.models import Distance, PointStruct, UpdateStatus, VectorParams
 
 from app.services.embeddings import embedding_dimension
 from app.settings import get_settings
@@ -41,4 +41,6 @@ def upsert_chunks(paper_id: str, chunks: list[dict], vectors: list[list[float]])
         )
         for chunk, vector in zip(chunks, vectors)
     ]
-    client.upsert(collection_name=COLLECTION_NAME, points=points)
+    result = client.upsert(collection_name=COLLECTION_NAME, points=points, wait=True)
+    if result.status != UpdateStatus.COMPLETED:
+        raise RuntimeError("Qdrant did not confirm completed indexing")
