@@ -37,11 +37,30 @@ methodology" should retrieve Methodology-section chunks, not an arbitrary
 slice of the document).
 
 **Decided parameters:**
-- **Chunk size:** ~500 tokens
-- **Overlap:** ~50 tokens between consecutive chunks *within the same
-  section*
-- **Metadata per chunk:** `{ section: str, page: int }` at minimum —
-  this is what makes citations (`docs/api-contract.md`) possible at all
+- **Chunk size:** bounded by the loaded embedding model's effective input limit,
+  including special tokens. Use the smaller finite limit declared by the model
+  and tokenizer. MiniLM's commonly configured 256-token limit must be confirmed
+  against the loaded artifact; it is not hardcoded here.
+- **Overlap:** target 32 source tokens within the same section. Small windows
+  reduced by retokenization may have less overlap to ensure forward progress.
+- **Metadata:** section, exact known pages, page bounds, provenance completeness,
+  and total token count. The legacy `page` field is the first known page or null.
+
+Implementation uses a fast tokenizer's character offsets to slice original
+text, preserving punctuation and accents. Each exact substring is retokenized
+with special tokens and shortened until it fits. Embedding rejects over-budget
+inputs rather than silently truncating. Slow tokenizers without offsets are
+unsupported. Table/figure items remain outside this text-item chunker.
+
+Page attribution is conservative: every provenance page of an overlapping
+Docling text item is retained. A chunk may include only part of a multi-page
+item, so these are possible source pages, not precise per-character citations.
+Missing item provenance is represented explicitly and is never inferred from
+an adjacent item. No claim-level citation validation is implemented yet.
+
+The v2 chunking fingerprint invalidates prior word-based ingestions: re-upload
+old documents. Dependency/model revisions remain unpinned, so the fingerprint
+does not yet provide full artifact reproducibility.
 
 **Why overlap matters:** without it, a sentence that's relevant to a
 question could get cut in half across two chunks, and neither half alone
@@ -94,10 +113,10 @@ chunk vectors.
   precision. Worth adding once you have an evaluation set to *measure*
   whether it helps — adding it now would be optimizing blind.
 
-**top-k:** start with **k=5** retrieved chunks per question. At ~500
-tokens each, 5 chunks is ~2500 tokens of context handed to the LLM
-alongside the question — enough grounding without bloating the prompt or
-the latency budget (NFR1: <5s).
+**top-k:** currently **k=5**. The embedding tokenizer controls chunk size; the
+generation model has a different tokenizer/context limit. Total generation
+prompt budgeting and the <5s latency target require separate implementation
+and measurement; neither is established by this chunking change.
 
 ---
 

@@ -69,7 +69,10 @@ function ChatView({ paper, file, onReset }) {
                 <ul className="text-sm text-gray-500">
                   {message.citations.map((citation, j) => (
                     <li key={j}>
-                      {citation.section} — page {citation.page}
+                      {citation.section} — {citation.pages?.length
+                        ? `pages ${citation.pages.join(', ')}`
+                        : citation.page != null ? `page ${citation.page}` : 'page inconnue'}
+                      {citation.pages?.length > 0 && !citation.provenance_complete && ' (références partielles)'}
                     </li>
                   ))}
                 </ul>
