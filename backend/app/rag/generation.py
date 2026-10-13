@@ -2,18 +2,15 @@ from functools import lru_cache
 
 from langchain_groq import ChatGroq
 
-# Groq's model catalog changes over time — if this model is retired,
-# check current options at console.groq.com/docs/models and swap it here.
-MODEL_NAME = "llama-3.3-70b-versatile"
+from app.settings import get_settings
 
 
 @lru_cache
 def _get_llm() -> ChatGroq:
-    # Lazy + cached: created on first real use, not at import time. This
-    # matters because it reads GROQ_API_KEY from the environment, and we
-    # don't want to depend on import order (main.py loading .env before
-    # this module gets imported) just to have a valid key available.
-    return ChatGroq(model=MODEL_NAME, temperature=0)
+    settings = get_settings()
+    if not settings.groq_api_key:
+        raise ValueError("GROQ_API_KEY is required to generate answers")
+    return ChatGroq(model=settings.llm_model, api_key=settings.groq_api_key, temperature=0)
 
 
 PROMPT_TEMPLATE = """Answer the question using only the context below. \

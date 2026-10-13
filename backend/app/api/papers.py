@@ -9,10 +9,9 @@ from app.services.chunking import chunk_document
 from app.services.embeddings import embed_texts
 from app.services.extraction import ExtractionError, extract_pdf
 from app.services.vector_store import ensure_collection, upsert_chunks
+from app.settings import get_settings
 
 router = APIRouter()
-
-MAX_FILE_SIZE = 50 * 1024 * 1024  # 50MB, per docs/requirements.md NFR3
 
 # In-memory registry: paper_id -> metadata. MVP limitation — no persistence
 # layer yet, so this is lost on server restart (see docs/requirements.md
@@ -27,8 +26,9 @@ async def upload_paper(file: UploadFile) -> UploadResponse:
         raise HTTPException(status_code=400, detail="File must be a PDF")
 
     contents = await file.read()
-    if len(contents) > MAX_FILE_SIZE:
-        raise HTTPException(status_code=413, detail="File exceeds 50MB limit")
+    settings = get_settings()
+    if len(contents) > settings.max_upload_bytes:
+        raise HTTPException(status_code=413, detail=f"File exceeds {settings.max_upload_mb}MB limit")
 
     with tempfile.NamedTemporaryFile(suffix=".pdf", delete=False) as tmp:
         tmp.write(contents)
