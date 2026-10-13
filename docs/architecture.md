@@ -9,6 +9,7 @@
 | AI orchestration | LangChain       |
 | PDF extraction | Docling            |
 | Vector DB   | Qdrant               |
+| Document metadata | SQLite (Python sqlite3) |
 | Embeddings  | Sentence Transformers |
 
 ## High-Level Flow
@@ -42,6 +43,14 @@ one-time diagram.
 - **Why:** single entry point, request validation, orchestration
 - **Input:** HTTP requests from frontend
 - **Output:** JSON responses (paper_id, chat answers, etc.)
+
+### SQLite document registry
+- Initialized through FastAPI lifespan at `DATA_DIR/documents.sqlite3`.
+- Records owner, checksum, pipeline fingerprint, status, counts and timestamps.
+- Upload marks ready after confirmed vector indexing; chat checks readiness.
+- Single-user owner `local` is server-controlled, but is not authentication.
+- API restart recovery requires persistent SQLite and Qdrant storage. Crash
+  reconciliation and source-PDF retention are still planned.
 
 ### Docling (extraction)
 - **Why:** turns raw PDF bytes into structured text (sections, pages)

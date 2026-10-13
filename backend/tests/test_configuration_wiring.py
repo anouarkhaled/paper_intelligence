@@ -100,11 +100,12 @@ def test_missing_groq_key_fails_only_when_generation_is_requested(monkeypatch):
         module._get_llm()
 
 
-def test_api_respects_configured_cors_and_upload_limit(monkeypatch):
+def test_api_respects_configured_cors_and_upload_limit(monkeypatch, tmp_path):
     from fastapi.testclient import TestClient
 
-    settings = Settings.from_env({"MAX_UPLOAD_MB": "1", "CORS_ORIGINS": "https://ui.example.com"}, env_file=None)
+    settings = Settings.from_env({"MAX_UPLOAD_MB": "1", "CORS_ORIGINS": "https://ui.example.com", "DATA_DIR": str(tmp_path)}, env_file=None)
     monkeypatch.setattr("app.settings.get_settings", lambda: settings)
+    monkeypatch.setattr("app.services.document_store.get_settings", lambda: settings)
 
     def unexpected_call(*args, **kwargs):
         pytest.fail("Rejected uploads must not reach ingestion or generation")
@@ -122,9 +123,14 @@ def test_api_respects_configured_cors_and_upload_limit(monkeypatch):
             setattr(stub, function, unexpected_call)
         if name.endswith("extraction"):
             stub.ExtractionError = type("ExtractionError", (Exception,), {})
+        if name.endswith("chunking"):
+            stub.CHUNK_SIZE_WORDS = 500
+            stub.CHUNK_OVERLAP_WORDS = 50
         monkeypatch.setitem(sys.modules, name, stub)
 
     api = ModuleType("app.api")
+    identity = load_module("app/services/ingestion_identity.py", "test_identity_config")
+    monkeypatch.setitem(sys.modules, "app.services.ingestion_identity", identity)
     api.papers = load_module("app/api/papers.py", "test_papers_config")
     monkeypatch.setitem(sys.modules, "app.api.papers", api.papers)
     api.chat = load_module("app/api/chat.py", "test_chat_config")
