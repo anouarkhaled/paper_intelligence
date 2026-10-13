@@ -1,6 +1,5 @@
 import { useMemo, useState } from 'react'
-
-const API_URL = 'http://127.0.0.1:8000'
+import { API_URL } from '../config'
 
 function ChatView({ paper, file, onReset }) {
   const [messages, setMessages] = useState([])

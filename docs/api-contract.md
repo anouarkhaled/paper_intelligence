@@ -36,7 +36,7 @@ reference this paper in later requests.
 | Case | Status | Body |
 |---|---|---|
 | Not a PDF | 400 | `{ "detail": "File must be a PDF" }` |
-| File > 50MB (NFR3) | 413 | `{ "detail": "File exceeds 50MB limit" }` |
+| File > configured `MAX_UPLOAD_MB` (default 50) | 413 | `{ "detail": "File exceeds 50MB limit" }` (message reflects configured limit) |
 | Docling fails to parse (e.g. scanned/image-only PDF) | 422 | `{ "detail": "Could not extract text from PDF" }` |
 
 ## `POST /chat`
@@ -70,6 +70,8 @@ generation, returns an answer grounded in cited chunks (NFR2).
 | Empty question | 400 | `{ "detail": "Question cannot be empty" }` |
 
 ## `POST /papers/{paper_id}/summary`
+
+**Planned endpoint — not implemented in the current application.**
 
 Generates a structured summary of the paper (TLDR, key contributions,
 limitations) — supports FR5. Separate endpoint from `/chat` because a

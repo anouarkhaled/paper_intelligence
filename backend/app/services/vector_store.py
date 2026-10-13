@@ -3,18 +3,33 @@ import uuid
 from qdrant_client import QdrantClient
 from qdrant_client.models import Distance, PointStruct, VectorParams
 
-client = QdrantClient(url="http://localhost:6333")
+from app.services.embeddings import embedding_dimension
+from app.settings import get_settings
 
-COLLECTION_NAME = "papers"
-VECTOR_SIZE = 384  # all-MiniLM-L6-v2 output dim, verified in LEARNING_LOG.md
+settings = get_settings()
+client = QdrantClient(url=settings.qdrant_url)
+
+COLLECTION_NAME = settings.qdrant_collection
 
 
 def ensure_collection() -> None:
+    vector_size = embedding_dimension()
     if not client.collection_exists(COLLECTION_NAME):
         client.create_collection(
             collection_name=COLLECTION_NAME,
-            vectors_config=VectorParams(size=VECTOR_SIZE, distance=Distance.COSINE),
+            vectors_config=VectorParams(size=vector_size, distance=Distance.COSINE),
         )
+    else:
+        vectors = client.get_collection(COLLECTION_NAME).config.params.vectors
+        if (
+            not isinstance(vectors, VectorParams)
+            or vectors.size != vector_size
+            or vectors.distance != Distance.COSINE
+        ):
+            raise ValueError(
+                "Qdrant collection is incompatible with the configured embedding model. "
+                "Choose a new QDRANT_COLLECTION and re-ingest documents."
+            )
 
 
 def upsert_chunks(paper_id: str, chunks: list[dict], vectors: list[list[float]]) -> None:

@@ -1,10 +1,10 @@
-from dotenv import load_dotenv
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 
 from app.api import chat, papers
+from app.settings import get_settings
 
-load_dotenv()
+settings = get_settings()
 
 app = FastAPI(title="Research Paper Assistant")
 
@@ -12,7 +12,7 @@ app = FastAPI(title="Research Paper Assistant")
 # origin allowlist before any non-local deployment.
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["http://localhost:5173"],
+    allow_origins=list(settings.cors_origins),
     allow_methods=["*"],
     allow_headers=["*"],
 )

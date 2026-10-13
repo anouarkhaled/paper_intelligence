@@ -22,6 +22,11 @@ summarization, question answering, comparison, and literature analysis.
 - Deployment (cloud hosting, CI/CD)
 - Multi-user collaboration
 
+Current implementation note: OCR is disabled, so the supported input is a
+born-digital PDF with an embedded text layer. Summary generation (FR5) remains
+planned. Answer quality and the latency target below have not been established
+by an evaluation benchmark.
+
 ## Functional Requirements
 
 | ID  | Requirement |
@@ -38,7 +43,7 @@ summarization, question answering, comparison, and literature analysis.
 |------|-------------|
 | NFR1 | Answer latency < 5s |
 | NFR2 | Answers must cite sources (section/page) |
-| NFR3 | System should support PDFs up to 50MB |
+| NFR3 | System should support PDFs up to the configured limit (default 50 MiB) |
 | NFR4 | System should degrade gracefully on malformed/unparsable PDFs |
 
 ## Open Questions (to resolve before/while building)
