@@ -93,7 +93,7 @@ not create directories, download models, or contact services.
 | `QDRANT_COLLECTION` | `papers` | Collection used for ingestion and retrieval |
 | `EMBEDDING_MODEL` | `all-MiniLM-L6-v2` | Sentence Transformers model |
 | `LLM_MODEL` | `llama-3.3-70b-versatile` | Groq model identifier |
-| `DATA_DIR` | `data` | Reserved location for the planned persistence upgrade |
+| `DATA_DIR` | `data` | SQLite metadata location (`documents.sqlite3`) when the store is initialized |
 | `MAX_UPLOAD_MB` | `50` | Positive integer upload limit, in MiB |
 | `CORS_ORIGINS` | `http://localhost:5173` | Comma-separated HTTP(S) origins; no wildcard |
 | `GROQ_API_KEY` | None | Required when generating answers; excluded from settings repr |
@@ -112,7 +112,9 @@ incompatible index. Dependency versions and model revisions are not pinned yet.
 
 Implemented routes: `GET /health`, `POST /papers/upload`, and `POST /chat`.
 Summary generation is planned, not implemented. Paper metadata is still in
-memory and is lost on restart; `DATA_DIR` does not enable persistence yet.
+memory and is lost on restart. The SQLite metadata store and migrations are
+implemented but not yet connected to these routes; setting `DATA_DIR` alone
+does not persist API uploads. See [document-store design](docs/document-store.md).
 Only born-digital PDFs are supported; OCR is disabled. Upload size is currently
 checked after reading the file. Citations list retrieved sections/pages and are
 not yet validated against individual answer claims. See `docs/milestones.md`
@@ -133,6 +135,12 @@ or a Groq key. In a Python environment with `pytest`, `python-dotenv`, and
 ```bash
 cd backend
 python -m pytest -q tests/test_settings.py tests/test_configuration_wiring.py
+```
+
+The standalone metadata store can be tested without model or service dependencies:
+
+```bash
+python -m pytest -q tests/test_document_store.py
 ```
 
 The Qdrant configuration test uses an in-memory client; model and LLM
